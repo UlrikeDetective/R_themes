@@ -1,2 +1,2 @@
-python3 -m venv viz
-source viz/bin/activate
+python3 -m venv R_themes
+source R_themes/bin/activate
