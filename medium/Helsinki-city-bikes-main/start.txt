@@ -22,3 +22,12 @@ contourpy==1.1.1
 /Users/ulrike_imac_air/projects/R_themes/venv/bin/python -m pip install h3
 /Users/ulrike_imac_air/projects/R_themes/venv/bin/python -m pip install leafmap
 /Users/ulrike_imac_air/projects/R_themes/venv/bin/python -m pip install geopandas shapely branca folium
+
+References:
+GitHub repository for the Helsinki city bike data analysis: https://github.com/sktahtin4/Helsinki-city-bikes
+Uber blog on H3: https://www.uber.com/en-FI/blog/h3/
+H3 documentation: https://h3geo.org/
+Table of statistics of the different hexagon resolutions: https://h3geo.org/docs/core-library/restable/
+More info on the global grid systems: http://webpages.sou.edu/~sahrk/sqspc/pubs/gdggs03.pdf
+Data viewer for the hexagons: https://wolf-h3-viewer.glitch.me
+HSL open data: https://www.hsl.fi/en/hsl/open-data
