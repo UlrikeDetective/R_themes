@@ -1,0 +1,24 @@
+# Create a virtual environment called 'venv'
+python -m venv venv
+
+# Activate it:
+
+# Mac/Linux
+source venv/bin/activate
+
+pip install -r requirements.txt
+
+python3.11 -m venv venv
+source venv/bin/activate
+pip install -r requirements.txt
+
+
+contourpy==1.1.1
+
+/Users/ulrike_imac_air/projects/R_themes/venv/bin/python -m pip install matplotlib
+
+/Users/ulrike_imac_air/projects/R_themes/venv/bin/python -m pip install seaborn
+/Users/ulrike_imac_air/projects/R_themes/venv/bin/python -m pip install geojson
+/Users/ulrike_imac_air/projects/R_themes/venv/bin/python -m pip install h3
+/Users/ulrike_imac_air/projects/R_themes/venv/bin/python -m pip install leafmap
+/Users/ulrike_imac_air/projects/R_themes/venv/bin/python -m pip install geopandas shapely branca folium
