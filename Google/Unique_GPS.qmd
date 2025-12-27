@@ -1,0 +1,126 @@
+---
+title: "Unique_GPS"
+format: html
+editor: visual
+---
+
+# Unique GPS
+
+### packages and libraries
+
+```{r}
+#install.packages("chron")
+#install.packages("readxl")
+#install.packages("dplyr")
+#install.packages("stringr")
+#install.packages("lubridate")
+library(readxl)
+library(chron)
+library(dplyr)
+library(stringr)
+library(lubridate)
+```
+
+### Loading dataframes
+
+```{r}
+IPhone <- read.csv('/Users/ulrike_imac_air/projects/Development/GPS/PreliminaryResultsData/IPhone.csv')
+
+GoogleRecords <- read.csv('/Users/ulrike_imac_air/projects/Development/GPS/PreliminaryResultsData/GoogleRecords.csv')
+
+Googlemonth <- read.csv('/Users/ulrike_imac_air/projects/Development/GPS/PreliminaryResultsData/Googlemonth.csv')
+
+Googletimeline <- read.csv('/Users/ulrike_imac_air/projects/Development/GPS/PreliminaryResultsData/Googletimeline.csv')
+
+head(IPhone)
+head(GoogleRecords)
+head(Googlemonth)
+head(Googletimeline)
+```
+
+### Combining Data
+
+-   creating new column GPS
+
+```{r}
+# Combine LatitudeStart and LongitudeStart into a new column named GPS
+IPhone$GPS <- paste(IPhone$LatitudeStart, IPhone$LongitudeStart, sep = ", ")
+
+Googlemonth$GPS <- paste(Googlemonth$LatitudeStart, Googlemonth$LongitudeStart, sep = ", ")
+
+GoogleRecords$GPS <- paste(GoogleRecords$LatitudeStart, GoogleRecords$LongitudeStart, sep = ", ")
+
+Googletimeline$GPS <- paste(Googletimeline$LatitudeStart, Googletimeline$LongitudeStart, sep = ", ")
+
+Googletimeline$GPSend <- paste(Googletimeline$LatitudeEnd, Googletimeline$LongitudeEnd, sep = ", ")
+
+head(IPhone)
+head(GoogleRecords)
+head(Googlemonth)
+head(Googletimeline)
+```
+
+-   create new dataframe GPS
+
+    ```{r}
+    # Combine the GPS columns from the dataframes
+    GPS <- data.frame(
+      GPS = c(
+        IPhone$GPS,
+        GoogleRecords$GPS,
+        Googlemonth$GPS,
+        Googletimeline$GPS,
+        Googletimeline$GPSend
+      ),
+      stringsAsFactors = FALSE  # To prevent strings from being converted to factors
+    )
+
+    # View the new GPS dataframe
+    head(GPS)
+
+    ```
+
+```{r}
+GPS
+```
+
+### Unique entries
+
+```{r}
+# Create a second dataframe with unique PlaceID values, excluding NAs
+GPSunique <- unique(na.omit(GPS$GPS))
+
+# If you want to create a dataframe with the unique values as a column
+GPSunique <- data.frame(GPS = unique(na.omit(GPS$GPS)))
+
+GPSUnique
+```
+
+```{r}
+write.csv(GPSunique, file = "/Users/ulrike_imac_air/projects/Development/GPS/PreliminaryResultsData/GPSUnique.csv", row.names = FALSE)
+```
+
+### Splitting GPSunique
+
+```{r}
+# Split the GPS column into Latitude and Longitude
+GPSunique[c("Latitude", "Longitude")] <- do.call(
+  rbind,
+  strsplit(GPSunique$GPS, split = ", ")
+)
+
+# Convert Latitude and Longitude to numeric type
+GPSunique$Latitude <- as.numeric(GPSunique$Latitude)
+GPSunique$Longitude <- as.numeric(GPSunique$Longitude)
+
+# View the updated dataframe
+head(GPSunique)
+
+
+```
+
+### Write csv
+
+```{r}
+write.csv(GPSUnique, file = "/Users/ulrike_imac_air/projects/Development/GPS/PreliminaryResultsData/GPS.csv", row.names = FALSE)
+```
