@@ -1,0 +1,196 @@
+---
+title: "calender"
+format: html
+editor: visual
+---
+
+## Calender 2024
+
+packages
+
+```{r}
+install.packages("data.table")
+# install.packages("tidyverse")
+install.packages("extrafont")
+```
+
+libraries
+
+```{r}
+library(data.table)
+library(tidyverse)
+library(extrafont)
+library(lubridate)
+```
+
+```{r}
+# Create data frame
+calendar <- data.table(
+  date = seq.Date(as.Date("2024-01-01"), as.Date("2024-12-31"), by = "day")
+)
+```
+
+```{r}
+# Add month
+calendar[, month := str_to_title(lubridate::month(date,
+  label = TRUE,
+  abbr = FALSE))]
+calendar[, month := factor(month, levels = unique(month))]
+```
+
+```{r}
+# Add week
+calendar[, week := lubridate::week(date)]
+# Add day
+calendar[, day := day(date)]
+# Add weekday
+calendar[, weekday := {
+  weekdays(date, abbreviate = TRUE) %>%
+    fct_inorder()
+}]
+```
+
+```{r}
+# Sunday as first day of week
+calendar[, weekend_holydays := fifelse(wday(date) %in% c(7, 1), "weekend", "workdays")]
+
+# Monday as first day of week
+
+# calendar[, weekend_holydays := fifelse(wday(date, week_start = 1) %in% c(1, 7), "weekend", "workdays")]
+
+```
+
+```{r}
+# Holydays Germany Saxony
+holdays <-
+  c(
+  "2024-01-01",
+  "2024-03-29",
+  "2024-04-01",
+  "2024-05-01",
+  "2024-05-09",
+  "2024-05-20",
+  "2024-10-03",
+  "2024-10-31",
+  "2024-11-20",
+  "2024-12-24",
+  "2024-12-25",
+  "2024-12-26",
+  "2024-12-31"
+  ) %>% as.Date()
+
+# Add holydays
+calendar[, weekend_holydays := fifelse(date %in% holdays, "holydays", weekend_holydays)]
+```
+
+```{r}
+# Existing vacation data
+# Existing vacation data
+vacation <- data.frame(
+  start_date = as.Date("2024-02-22"),
+  end_date = as.Date("2024-03-05"),
+  duration_days = as.numeric(difftime(as.Date("2024-03-05"), as.Date("2024-02-22"), units = "days"))
+)
+
+# Additional vacation data
+additional_vacation <- data.frame(
+  start_date = as.Date("2024-05-20"),
+  end_date = as.Date("2024-05-26"),
+  duration_days = as.numeric(difftime(as.Date("2024-05-26"), as.Date("2024-05-20"), units = "days"))
+)
+
+# Combine the existing and additional vacation data
+all_vacation <- rbind(vacation, additional_vacation)
+
+# Assuming 'holidays' is a vector containing holiday dates
+calendar[, weekend_all_vacation := fifelse(date %in% holdays, "all_vacation", weekend_holydays)]
+
+```
+
+```{r}
+# Add week of month
+calendar[, week_month := frank(week, ties.method = "dense"), by = month]
+```
+
+```{r}
+# Color palette
+background <- "#B2EBF2FF"
+weekday_color <- "#313743"
+weekend_color <- "#34f5ff"
+holiday_color <- "yellow"
+vacation_color <- "#9e3d91"
+
+# c("lightyellow", "yellow", "#dee767", "#34f5ff", "#299ca2", "darkslategray3","deepskyblue1", "#1531ff", "#2353ff", "#232982")
+
+theme_set(theme_minimal(base_family = "Lato"))
+```
+
+```{r}
+library(ggplot2)
+
+# ... Your previous code ...
+
+plot <- calendar %>%
+  ggplot(aes(x = weekday, y = week_month)) +
+  geom_tile(alpha = 0.8, aes(fill = weekend_holydays)) +
+  geom_text(
+    aes(label = day, color = weekend_holydays),
+    family = font_base,
+    size = 3
+  ) +
+  facet_wrap( ~ month, scales = "free_x", ncol = 3) +
+  scale_x_discrete() +
+  scale_y_reverse(breaks = NULL) +
+  labs(title = "Calendar 2024",
+       fill = NULL,
+       caption = "Feiertage in gelb\nUlrike2024") +
+  theme_void() +
+  scale_fill_manual(values = c(holiday_color, weekend_color, weekday_color, vacation_color)) +
+  scale_color_manual(values = c("weekend" = "black", "workdays" = "white")) +  # Set colors for text
+  # Add theme elements
+  theme(
+    plot.margin = margin(1, 0.5, 1, 1, "cm"),
+    axis.text.x = element_text(
+      color = weekday_color,
+      family = font_base,
+      size = 10,
+      vjust = 2
+    ),
+    # add plot title
+    plot.title = element_text(
+      hjust = 0.5,
+      vjust = 3,
+      color = weekday_color,
+      family = font_title,
+      size = 28
+    ),
+    # add plot caption
+    plot.caption = element_text(
+      hjust = 1,
+      color = weekday_color,
+      family = font_base,
+      size = 8
+    ),
+    # add legend
+    legend.position = "none",
+    # add panel spacing
+    panel.spacing = unit(0.5, "lines"),
+    # add panel background
+    panel.background = element_rect(fill = background, color = background),
+    # add plot background
+    plot.background = element_rect(fill = background, color = background)
+  )
+
+```
+
+```{r}
+ggsave(
+  filename = "calendar_2024_with_vacation.png",
+  path = normalizePath("/Users/ulrike_imac_air/projects/Trial_and_error/finish_projects"),
+  plot = plot,
+  device = "png",
+  units = "cm",
+  width = 21,
+  height = 15.75
+)
+```

@@ -1,0 +1,73 @@
+---
+title: "R_AI"
+format: html
+editor: visual
+---
+
+## Local LLM power, all in one place
+
+Remember, the beauty of a local model is that everything runs right on your computer. ellmer and chatlas are designed to communicate with Ollama, which in turn manages the local LLM. It’s a self-contained AI ecosystem on your machine!
+
+Before you can chat with Gemma through ellmer or chatlas, you usually need to make sure Ollama is running in the background. Open your Terminal and run the command we used to install the model: `ollama run gemma3:1b`.
+
+Now, let’s look at how to tell ellmer or chatlas to use our local Gemma model. We do this by creating a special `chat` object in our code.
+
+```{r}
+# install.packages("ellmer")
+
+```
+
+```{r}
+library(ellmer)
+
+chat <- chat_ollama(
+  model = "gemma3:1b",
+  system_prompt = "You are a terse and helpful assistant."
+)
+```
+
+Once you have your chat object set up, you have several ways to interact with your local LLM. One of the simplest is an interactive chat. You can type your questions or prompts, and Gemma’s responses will appear directly in the console.
+
+```{r}
+live_console(chat)
+
+```
+
+The real power comes when you integrate your local LLM into more complex applications. For example, you can spin up a Shiny chatbot by running the code below:
+
+```{r}
+install.packages("shiny")
+install.packages("shinychat")
+```
+
+```{r}
+library(shiny)
+library(shinychat)
+ 
+ui <- bslib::page_fluid(
+  chat_ui("chat")
+)
+
+server <- function(input, output, session) {
+ 
+  chat <- chat_ollama(
+    model = "gemma3:1b")
+ 
+  observeEvent(input$chat_user_input, {
+    stream <- chat$stream_async(input$chat_user_input)
+    chat_append("chat", stream)
+   group="language"})
+ group="language"}
+
+shinyApp(ui, server)
+```
+
+### Clearing the conversation cache
+
+LLMs are designed to maintain context throughout a conversation. This “conversational memory” allows them to provide coherent and relevant responses. However, sometimes this memory can become a hindrance. The previous conversation turns might lead the model down a specific path or bias its responses in a way that’s no longer desired.
+
+To effectively tell your AI, “Forget everything we just talked about and let’s start fresh,” both ellmer and chatlas provide simple ways to clear the conversation’s history, or “cache”:
+
+```{r}
+chat$set_turns(list())
+```

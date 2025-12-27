@@ -1,0 +1,29 @@
+---
+title: "Colorify Intro"
+format: html
+editor: visual
+---
+
+# **Colorify**
+
+<https://zimanaanalytics.medium.com/the-colorify-package-for-r-programming-build-intuitive-color-palettes-for-your-data-visualizations-ab6b01fcbc21>
+
+There is no package called Colorify
+
+```{r}
+install.packages("colorspace")
+library(colorspace)
+
+# Show available palettes
+hcl_palettes()
+
+```
+
+You can add options to executable code like this
+
+```{r}
+base_colors <- qualitative_hcl(4, palette = "viridis")
+base_colors
+```
+
+The `echo: false` option disables the printing of code (only output is displayed).

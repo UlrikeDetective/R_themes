@@ -1,0 +1,248 @@
+---
+title: "Solving the Missing Data Puzzle: Intro to Econometric Techniques in R"
+author: "Medium Omar "Charming" Barroso"
+format: html
+editor: visual
+---
+
+Let’s address the elephant in the room: if you work with data, sooner or later you’ll encounter a database riddled with missing values. Many online courses in data science or analytics — especially those using R — tend to gloss over this issue, offering a quick fix with a single line of code: ‘is.na()’. This command seems to magically remove missing values, allowing you to proceed with your analysis as if nothing ever happened. But if you’re dealing with a substantial amount of missing data and simply discarding it, you’re also erasing part of the story. These gaps can signify a range of underlying issues, *unreliable or inadequate data collection, omitted variables, and, in some cases, even manipulation or bias*. As economists and financial analysts, we can’t afford to overlook these signals — they’re not just noise, they’re clues.
+
+If you’ve been following my content over the past few weeks, you likely came across an article discussing the [Gini Coefficient](https://medium.com/@khodr.omar.business/measuring-and-visualizing-economic-inequality-with-r-a-step-by-step-guide-to-the-gini-coefficient-cb200d89902f). In that piece, the dataset we used contained a substantial amount of missing values. To shed more light on that topic, we’ll revisit the same dataset here, including some of those missing values.
+
+What we will learn in this article:
+
+-   Identifying and counting the missing values in a database.
+
+-   Mean/Median/Mode Imputation.
+
+-   Regression Imputation.
+
+**Database & Libraries**
+
+We will follow the same steps as in the previous article to upload our database and the libraries we will use.
+
+```{r}
+install.packages("WDI")
+
+```
+
+```{r}
+library(WDI)
+
+```
+
+```{r}
+package_list<- c("ggplot2", "dplyr","ineq","WDI", "countrycode", "ggpmisc", "ggrepel")
+lapply(package_list, require, character.only = TRUE)
+
+```
+
+Loading the data
+
+```{r}
+#| echo: false
+# We are going to download Gini data from the WDI package going back 10 years ago.
+# Feel free to edit the data according to your analysis
+gini_data <- WDI(country = "all", indicator = "SI.POV.GINI", start = 2015)
+```
+
+As a reminder, we have been downloading data on the Gini coefficient from the World Development Indicator ([WDI](https://cran.r-project.org/web/packages/WDI/WDI.pdf)) package since 2015.
+
+**Identifying the NAs**
+
+Before we get to the cherry on top — the fancy quantitative solutions — we first need to identify where the missing values lie in our dataset. A glance at ‘gini_data’ already gives us a clear picture of what we’re dealing with:
+
+```{r}
+glimpse(gini_data)
+```
+
+Let’s take it step by step. First, we observe that our dataset contains 2,660 observations. It includes five columns, or variables:\
+• country, representing the name of each country\
+• iso2c, the two-letter country code\
+• iso3c, the three-letter country code\
+• year, indicating the reference year\
+• SI.POV.GINI, which corresponds to the Gini Coefficient as calculated by the World Bank\
+Using the function ‘glimpse()’, we can immediately see a substantial number of missing values in the Gini Coefficient variable. Let’s investigate this further.
+
+**Identifying the Origin of the NAs**
+
+Visually inspecting missing values can be misleading; therefore, it’s important to address this issue systematically. Let’s begin with the basics:
+
+I\) **Count the missing values** — both overall and within relevant categories such as countries and groups.
+
+II\) **Visualizations** can help illustrate the magnitude of the gaps. Based on these insights, we can decide which values to retain for our analysis.
+
+*III) **Optional*****:** Prepare a missing values report. Such a report can serve as evidence to justify the need for a missing values analysis or to challenge the validity of the dataset.
+
+Therefore, let’s count the total missing values in gini_data. For this, we will use the sum() function, which we call from within the is.na() function with our obviously dataset, gini_data. Afterwards, we will call colSums(is.na(gini_data)) to count the missing values per variable.
+
+```{r}
+# counting the NAs
+# Count total missing values in the whole dataframe
+sum(is.na(gini_data))
+
+# Count missing values per variable
+colSums(is.na(gini_data))
+```
+
+The results are 2,009 missing values for our main variable of interest (Gini Coefficient)!
+
+If we perform a simple calculation — dividing the total number of missing values by the total number of observations (2,009 ÷ 2,660) — we find that roughly 75% of the dataset is missing. If we consider that the Gini coefficient is our main variable of interest, this is certainly an issue that warrants further investigation.
+
+```{r}
+# you can do the simple calculation above using the sapply function
+
+sapply(gini_data, function(x) mean(is.na(x)) * 100)
+```
+
+Great! Now, let’s visualize the countries with the most missing values. To do so, we will make a simple bar plot using *ggplot2*. We will use ‘coord_flip()’ so all the names can fit properly on the y-axis. Before that, using the **dplyr**’s **pipe operator** (%\>%), we will ‘*group_by()*’ the countries in our database.
+
+```{r}
+# Missing values by country
+missing_by_country <- gini_data %>%
+  group_by(country) %>%
+  summarise(missing_gini = sum(is.na(SI.POV.GINI)),
+            total_obs = n()) %>%
+  arrange(desc(missing_gini))
+
+# Plot missing by country (we will use the top 10 for readability)
+ggplot(head(missing_by_country, 20), aes(x = reorder(country, missing_gini), y = missing_gini)) +
+  geom_col(fill = "#B8907B") +
+  coord_flip() +
+  labs(title = "Missing Gini Values by Country (Top 20)",
+       x = "",
+       y = "Number of Missing Gini Values")+theme_classic()
+```
+
+The missing values are dispersed across a wide range of countries; however, the overall count is relatively small and may be concentrated within that subset. Notably, several entries among the top 10 represent regional groupings rather than individual nations — for example, “Arab World,” “Africa Western and Central,” and “Africa Eastern and Southern.” If **we opt** to analyze countries individually rather than as aggregated regions, there is sufficient justification for excluding these missing values from the dataset.
+
+Now, let’s examine the missing values per year. Similar to the last exercise, we use the group_by function to organize this group.
+
+```{r}
+# Missing values by year
+
+missing_by_year <- gini_data %>%
+  group_by(year) %>%
+  summarise(missing_gini = sum(is.na(SI.POV.GINI)),
+            total_obs = n())
+
+ggplot(missing_by_year, aes(x = year, y = missing_gini)) +
+  geom_col(fill = "#648287") +
+  labs(title = "Missing Gini Values by Year",
+       x = "Year",
+       y = "Number of Missing Gini Values") +
+  scale_x_continuous(breaks = seq(min(missing_by_year$year), max(missing_by_year$year), by = 1)) +
+  theme_classic()
+```
+
+Interestingly, the most missing variables were recorded in the final year of the dataset (2024), which opens up a range of insights worth exploring further. For instance, if you’re working with a specific country or regional grouping that includes any of the entities shown in Figure 3, it may be valuable to investigate the underlying gaps.
+
+Potential causes include limited resources or infrastructure for data collection, difficulties posed by unstable or hostile environments, or even censorship in certain cases. These qualitative factors add depth and nuance to your research — so be sure to look beyond the numbers and consider the broader context.
+
+**Mean/Median/Mode Imputation**
+
+*If you’re reading this article, it’s likely that you already have some background in mathematics and statistics. As such, I won’t delve into the foundational concepts of statistical measures like the mean, median, and mode. However, if these terms are unfamiliar to you, I recommend checking out the [Glossary of Statistical Terms](https://www.stat.berkeley.edu/~stark/SticiGui/Text/gloss.htm) for a quick introduction.*
+
+So, what do these imputations mean? As the name suggests, all three methods ‘fill the gaps’ by replacing missing values with a representative figure — either from the same country’s data or, if needed, from the entire dataset. This way, no rows are discarded. In simpler terms, it’s like taking the Gini coefficient values we do have, calculating their mean, median, or mode, and then inserting that result into the missing spots.
+
+**Pros:** Quick fix; preserves sample size.\
+**Cons:** Underestimates variability; can distort relationships between variables.
+
+Let’s first look at the global imputation:
+
+```{r}
+# mean imputation
+gini_data$SI.POV.GINI[is.na(gini_data$SI.POV.GINI)] <- 
+  mean(gini_data$SI.POV.GINI, na.rm = TRUE)
+
+# median imputation
+gini_data$SI.POV.GINI[is.na(gini_data$SI.POV.GINI)] <- 
+  median(gini_data$SI.POV.GINI, na.rm = TRUE)
+
+# Define a function to find the mode (most frequent value)
+get_mode <- function(x) {
+  ux <- unique(x)
+  tab <- tabulate(match(x, ux))
+  ux[tab == max(tab)]
+}
+
+# Impute missing values with the mode
+gini_data$SI.POV.GINI[is.na(gini_data$SI.POV.GINI)] <-
+  get_mode(gini_data$SI.POV.GINI[!is.na(gini_data$SI.POV.GINI)])
+
+```
+
+If we run ‘*colSums(is.na(gini_data))’* to verify the missing values by variable, we can see that we have this problem quickly solved.
+
+Choosing between the mean, median, or mode depends on which measure of central tendency best fits your theoretical perspective. For instance, the mean can be overly influenced by extreme values, while the median often provides a more balanced representation of the data’s central point. The mode, in contrast, highlights the most frequently occurring value.
+
+Nevertheless, suppose we want to look at a specific scenario that we want to impute **within each country in our dataset**, we’ll group the data by `country` (or `iso3c` if that’s more stable) and replace missing values using the mean, median, or mode **calculated per country**.
+
+```{r}
+#mean by country
+gini_data_mean <- gini_data %>%
+  group_by(country) %>%
+  mutate(SI.POV.GINI = ifelse(is.na(SI.POV.GINI),
+                              mean(SI.POV.GINI, na.rm = TRUE),
+                              SI.POV.GINI)) %>%
+  ungroup()
+
+# median by country
+gini_data_median <- gini_data %>%
+  group_by(country) %>%
+  mutate(SI.POV.GINI = ifelse(is.na(SI.POV.GINI),
+                              median(SI.POV.GINI, na.rm = TRUE),
+                              SI.POV.GINI)) %>%
+  ungroup()
+
+# mode by country
+get_mode <- function(x) {
+  uniq <- na.omit(unique(x))
+  uniq[which.max(tabulate(match(x, uniq)))]
+}
+
+gini_data_mode <- gini_data %>%
+  group_by(country) %>%
+  mutate(SI.POV.GINI = ifelse(is.na(SI.POV.GINI),
+                              get_mode(SI.POV.GINI),
+                              SI.POV.GINI)) %>%
+  ungroup()
+
+# don't forget to verify if the experiment worked well (below)
+is.na(gini_data_mean)
+is.na(gini_data_median)
+is.na(gini_data_mode)
+```
+
+These worked like magic? They did to me! However, can we verify this technique works? There are several ways we can verify **if our country-level imputation worked properly**. Here are some practical checks you can run in R:
+
+```{r}
+# Verify no missing values remain
+colSums(is.na(gini_data_mean))   # or gini_data_median / gini_data_mode
+
+#Check countries with all missing values
+gini_data %>%
+  group_by(country) %>%
+  summarise(missing_after = sum(is.na(SI.POV.GINI))) 
+```
+
+```{r}
+gini_data_mean
+gini_data_median
+gini_data_mode
+```
+
+If the imputation worked, the column SI.POV.GINI should show 0 missing values (except for countries where all values were NA). The results show:
+
+```{r}
+# Build regression model on non-missing Gini values, using year only
+fit <- lm(SI.POV.GINI ~ year, data = gini_data, subset = !is.na(SI.POV.GINI))
+
+# Predict missing values
+gini_data$SI.POV.GINI[is.na(gini_data$SI.POV.GINI)] <- 
+  predict(fit, newdata = gini_data[is.na(gini_data$SI.POV.GINI), ])
+
+# Check results
+summary(gini_data$SI.POV.GINI)
+colSums(is.na(gini_data))  # should now show 0 for SI.POV.GINI
+```

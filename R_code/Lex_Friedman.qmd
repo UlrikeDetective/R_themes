@@ -1,0 +1,332 @@
+---
+title: "Lex Friedman Podcast"
+format: pptx
+editor: visual
+---
+
+## Lex Friedman Postcast
+
+```{r, echo = FALSE}
+
+library(readxl)
+library(tidyverse)
+library(dplyr)
+library(knitr)
+library(ggplot2)
+library(skimr)
+library(viridis)
+```
+
+```{r, echo = FALSE}
+
+Lex_Friedmann <- read_excel("/Users/ulrike_imac_air/projects/Trial_and_error/data/Lex_Fridman_Podcast.xlsx")
+
+```
+
+```{r, echo = FALSE}
+
+head(Lex_Friedmann)
+skim(Lex_Friedmann)
+```
+
+```{r custom_theme_white_nolegend}
+custom_theme_white_nolegend <- function() {
+  #theme_minimal() %+replace%  
+  theme(
+    # Define the overall appearance of the plot
+    plot.background = element_rect(fill = "white"),
+    panel.background = element_rect(fill = "white"),
+    panel.grid.major = element_line(color = "azure2"),
+    panel.grid.minor = element_blank(),
+    
+    # Define the appearance of the axes
+    axis.line = element_line(color = "black"),
+    axis.text = element_text(color = "black"),
+    axis.title = element_text(color = "black", size = 12),
+    axis.ticks = element_line(color = "black"),
+    legend.position = "none",
+    
+    # Define the appearance of the plot title and subtitles
+    plot.title = element_text(color = "black", size = 14),
+    plot.subtitle = element_text(color = "black", size = 12),
+    
+    # Define the appearance of the plot labels
+    plot.caption = element_text(color = "black", size = 10),
+    plot.tag = element_text(color = "black", size = 11),
+    
+    # Remove the plot border
+    panel.border = element_blank()
+  )
+}
+```
+
+```{r, echo = FALSE}
+# install.packages("paletteer")
+library(paletteer)
+palette_Podcast <- paletteer_c("ggthemes::Sunset-Sunrise Diverging", 30)
+```
+
+```{r, echo = FALSE}
+Friedman_guest <- Lex_Friedmann %>% 
+  group_by(Guest)
+
+library(dplyr)
+
+Count_Friedman <- Lex_Friedmann %>%
+  count(Guest) %>%
+  arrange(desc(n))
+
+#Count_Friedman
+
+print(head(Count_Friedman, 12))
+
+```
+
+### 
+
+```{r, echo = FALSE}
+library(dplyr)
+
+Running_Time <- Lex_Friedmann %>%
+  group_by(Guest) %>%
+  summarise(Sum_Running_Time = sum(Runing_Time),
+            Entries = n(),
+            Mean_Running_Time = round(mean(Sum_Running_Time/Entries), 1)) %>%
+  arrange(desc(Sum_Running_Time))
+
+Running_Time
+
+Running_Time_Guests_10 <- head(Running_Time, 10)
+Running_Time_Guests_10
+
+Guest_Mean_Table <- Lex_Friedmann %>%
+  group_by(Guest) %>%
+  summarise(Sum_Running_Time = sum(Runing_Time),
+            Entries = n(),
+            Mean_Running_Time = round(mean(Sum_Running_Time/Entries), 1)) %>%
+  arrange(desc(Mean_Running_Time))
+
+Guest_Mean_Table
+```
+
+```{r, echo = FALSE}
+# Assuming your dataframe is named Lex_Friedman
+boxplot(Lex_Friedman$Runing_Time, 
+        main = "Boxplot of Running Time", 
+        xlab = "Running Time", 
+        ylab = "Minutes", 
+        col = palette_Podcast[1])
+
+```
+
+```{r, echo = FALSE}
+# Convert gender variable to factor
+Lex_Friedman$Gender <- factor(Lex_Friedman$Gender)
+
+colors <- c("#601ed3", "aquamarine2", "azure3")
+
+# Create boxplot split by gender
+boxplot(Runing_Time ~ Gender, 
+        data = Lex_Friedman,
+        main = "Boxplot of Running Time by Gender", 
+        xlab = "Gender", 
+        ylab = "Minutes", 
+        col = colors) 
+```
+
+```{r, echo = FALSE}
+library(dplyr)
+
+Year_Lexman <- Lex_Friedmann %>%
+  group_by(Year) %>%
+  summarise(Sum_Running_Time = sum(Runing_Time),
+            Entries = n(),
+            Mean_Running_Time = round(mean(Sum_Running_Time/Entries), 1)) %>%
+  arrange(desc(Sum_Running_Time))
+
+Year_Lexman
+
+```
+
+```{r, echo = FALSE}
+library(ggplot2)
+
+ggplot(Year_Lexman, aes(x = Year, y = Sum_Running_Time)) +
+  geom_bar(stat = "identity", fill = palette_Podcast[1]) +
+  geom_text(aes(label = Sum_Running_Time), position = position_stack(vjust = 0.5), color = "white", size = 4) +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
+  scale_x_continuous(breaks = c(2018, 2019, 2020, 2021, 2022, 2023)) +
+  scale_y_continuous(limits = c(0, max(Year_Lexman$Sum_Running_Time) + 100)) +
+  labs(title = "Total Running Time per Year",
+       x = "Year",
+       y = "Total Running Time in Minutes") +
+  custom_theme_white_nolegend() +
+  theme(
+    plot.title = element_text(size = 14, hjust = 0.5)
+  )
+
+ggplot(Year_Lexman, aes(x = Year, y = Mean_Running_Time)) +
+  geom_bar(stat = "identity", fill = palette_Podcast[15]) +
+  geom_text(aes(label = Mean_Running_Time), position = position_stack(vjust = 0.5), color = "black", size = 4) +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
+  scale_x_continuous(breaks = c(2018, 2019, 2020, 2021, 2022, 2023)) +
+  scale_y_continuous(limits = c(0, max(Year_Lexman$Mean_Running_Time) + 100)) +
+  labs(title = "Mean Running Time per Year",
+       x = "Year",
+       y = "Mean Running Time in Minutes") +
+  custom_theme_white_nolegend() +
+  theme(
+    plot.title = element_text(size = 14, hjust = 0.5)
+  )
+
+ggplot(Year_Lexman, aes(x = Year, y = Entries)) +
+  geom_bar(stat = "identity", fill = palette_Podcast[30]) +
+  geom_text(aes(label = Entries), position = position_stack(vjust = 0.5), color = "white", size = 4) +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
+  scale_x_continuous(breaks = c(2018, 2019, 2020, 2021, 2022, 2023)) +
+  scale_y_continuous(limits = c(0, max(Year_Lexman$Entries) + 100)) +
+  labs(title = "Episodes per Year",
+       x = "Year",
+       y = "Entries per Year") +
+  custom_theme_white_nolegend() +
+  theme(
+    plot.title = element_text(size = 14, hjust = 0.5)
+  )
+```
+
+```{r, echo = FALSE}
+library(ggplot2)
+
+# Assuming Year_Lexman is a data frame containing Sum_Running_Time, Mean_Running_Time, and Entries
+ggplot(Year_Lexman, aes(x = Year)) +
+  # Total Running Time
+  geom_bar(aes(y = Sum_Running_Time), stat = "identity", fill = palette_Podcast[1], position = "dodge") +
+  geom_text(aes(y = Sum_Running_Time, label = Sum_Running_Time),
+            position = position_dodge(width = 0.9), color = "white", size = 4, vjust = -0.5) +
+  
+  # Mean Running Time as Line
+  geom_line(aes(y = Mean_Running_Time * 10), color = palette_Podcast[15], size = 1) +
+  geom_point(aes(y = Mean_Running_Time * 10), color = palette_Podcast[15], size = 3) +
+  
+  # Entries
+  geom_bar(aes(y = Entries), stat = "identity", fill = palette_Podcast[30], position = "dodge") +
+  geom_text(aes(y = Entries, label = Entries),
+            position = position_dodge(width = 0.9), color = "white", size = 4, vjust = -0.5) +
+  
+  # Theme and labels
+  theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
+  scale_x_continuous(breaks = c(2018, 2019, 2020, 2021, 2022, 2023)) +
+  scale_y_continuous(limits = c(0, max(Year_Lexman$Sum_Running_Time) + 100)) +
+  
+  labs(title = "Running Time, Mean Running Time, and Entries per Year",
+       x = "Year",
+       y = "Values") +
+  
+  custom_theme_white_nolegend() +
+  
+  theme(plot.title = element_text(size = 14, hjust = 0.5))
+
+```
+
+```{r, echo = FALSE}
+library(dplyr)
+library(zoo)
+
+Month_Lexman <- Lex_Friedmann %>%
+  mutate(YearMonth = as.yearmon(paste(Year, Month, sep = "-"))) %>%
+  group_by(YearMonth) %>%
+  summarise(Sum_Running_Time = sum(Runing_Time),
+            Entries = n(),
+            Mean_Running_Time = round(mean(Sum_Running_Time/Entries), 1)) %>%
+  arrange(YearMonth)
+
+Month_Lexman
+
+# Assuming Month_Lexman is a data frame
+Month_Lexman_10 <- head(arrange(Month_Lexman, desc(Sum_Running_Time)), 10)
+
+Month_Lexman_10
+```
+
+```{r, echo = FALSE}
+Friedman_gender <- Lex_Friedmann %>% 
+  count(Gender) %>%
+  mutate(Percent = round(prop.table(n) * 100, 1)) %>%
+  arrange(desc(n))
+
+Friedman_gender
+```
+
+```{r, echo = FALSE}
+library(ggplot2)
+
+ggplot(Friedman_gender, aes(x = Gender, y = n)) +
+  geom_bar(stat = "identity", fill = palette_Podcast[7]) +
+  geom_text(aes(label = Gender), position = position_stack(vjust = 0.5), color = "white", size = 8) +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
+  labs(title = "Guest by gender",
+       x = "Gender",
+       y = "Entries Gender") +
+  custom_theme_white_nolegend() +
+  theme(
+    plot.title = element_text(size = 14, hjust = 0.5)
+  )
+```
+
+```{r, echo = FALSE}
+library(waffle)
+
+# Vector
+x <- Friedman_gender
+
+# Waffle chart
+waffle(x, rows = 18,
+       colors = c("#4DD0E1FF", "#FF8288", "#FFDBDD"))
+
+```
+
+### counting words
+
+```{r, echo = FALSE}
+library(tidyverse)
+library(tidytext)
+
+exclude_words <- c("and", "&", "on", "of", "the", "in", "for", "to", "with", "a", "how", "all", "at", "is", "new", "our", "9", "an", "c")
+
+word_counts <- Lex_Friedmann$Title %>%
+  str_to_lower() %>%
+  str_split(",| and ", simplify = TRUE) %>%
+  as.vector() %>%
+  str_trim() %>%
+  discard(~ .x %in% exclude_words) %>%
+  discard(~ .x == "") %>%
+  table() %>%
+  as.data.frame() %>%
+  setNames(c("Title", "count")) %>%
+  arrange(desc(count))
+
+# Print the result
+print(word_counts)
+```
+
+```{r, echo = FALSE}
+library(wordcloud)
+
+word_counts_20 <- head(word_counts, 20)
+word_counts_20
+
+# Assuming word_counts is your data frame with columns 'Title' and 'count'
+wordcloud(words = word_counts_20$Title, freq = word_counts_20$count, scale = c(4, 1.0), min.freq = 1, colors = brewer.pal(8, "Dark2"))
+
+```
+
+```{r, echo = FALSE}
+library(waffle)
+
+# Vector
+x <- word_counts_20
+
+# Waffle chart
+waffle(x, rows = 12,
+       colors = palette_Podcast)
+```
