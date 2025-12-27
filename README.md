@@ -1,6 +1,8 @@
 # Learning about Visualisation, Plots and Graphs
 
-![head_picture]([icons/Screenshot 2024-03-27 at 19.57.26.png](https://github.com/UlrikeDetective/sources/blob/main/icons/Screenshot%202024-03-27%20at%2019.57.26.png))
+<div style="display: inline-block;">
+  <img src="https://github.com/UlrikeDetective/sources/blob/main/icons/Screenshot%202024-03-27%20at%2019.57.26.png" alt="balance" width="300" height="300" style="float: left"/>
+</div>
 
 Welcome! This repository allows you to explore the world of data visualization using R and Quarto. It contains a collection of example charts, dashboards, and custom themes to help you elevate your data insights.
 
