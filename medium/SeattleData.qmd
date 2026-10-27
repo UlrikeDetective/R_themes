@@ -1,0 +1,236 @@
+---
+title: "SeattleOpenData"
+format: html
+editor: visual
+---
+
+## **How to Use SeattleOpenData: Pulling Civic Data into R Programming Without Wrangling the API**
+
+#### *A three-function R package that turns Seattle’s open data portal into tidy tibbles, so lean analytics teams can start with analysis instead of API plumbing.*
+
+Municipal open data is one of the best free resources a resource-constrained team can tap. City administrations wanted an open portal so that developers can be encouraged to develop apps that enhance community services and quality of life for citizens.
+
+Seattle is among the cities publishing a data portal via Socrata API. Seattle’s API payload can includes a variety of datasets covering pet licenses, building permits, business licenses, police reports, and city payroll. Like other city portals, access to the data is controlled. Every dataset sits behind a Socrata JSON endpoint, and getting a clean data frame out of it usually means building a query string by hand, sending an HTTP request, parsing the JSON, and fixing column types before any real work begins. That’s a lot of setup tasks for a small team or individual that just wants to answer a question.
+
+The **SeattleOpenData** package eliminates the downsides of that setup. It gives R users a small, consistent interface to the [Seattle Open Data Portal](https://data.seattle.gov/) that returns tidy tibbles ready for analysis. In this article I will walk through what the package does, the three functions it exports, and the arguments that make it useful for real work.
+
+## **What Features the SeattleOpenData Package Provides**
+
+SeattleOpenData is a lightweight wrapper around Seattle’s Socrata API. Internally the package retrieves the live portal catalog, builds parameterized HTTP requests, downloads the JSON responses, converts them to tibbles, cleans column names, and applies conservative type coercion. You call a function and get a data frame back.
+
+[Shelby Lyn Gomes](https://github.com/gomes-sh) and [Christian Martinez](https://github.com/martinezc1) created the package, applying the same portal structure used in [nycOpenData](https://cran.r-project.org/package=nycOpenData). That shared foundation means the interface will feel familiar if you’ve used the New York or Austin versions. One significant note: SeattleOpenData is an independent project and isn’t affiliated with the City of Seattle.
+
+Three functions cover the whole workflow.
+
+- `seattle_list_datasets()` browses the live catalog of available datasets.
+
+- `seattle_pull_dataset()` downloads a dataset by a readable key or a Socrata ID.
+
+- `seattle_any_dataset()` downloads directly from a Socrata JSON endpoint when a dataset isn't in the catalog.
+
+Every example below uses the Seattle Pet Licenses dataset, which comes with the package. Its Socrata ID is `jguv-t9rb`, and it carries clean categorical fields like `species` and `primary_breed` along with a `license_issue_date` column, which makes it a good proxy for showing filtering and date handling.
+
+## **Installing and loading the package**
+
+SeattleOpenData is on CRAN, so a standard package install works.
+
+```{r}
+# install.packages("SeattleOpenData")
+```
+
+```{r}
+insta
+```
+
+You can also install the package from GitHub — this step is useful when you want a specific version of a package.
+
+```         
+## Or install the development version from GitHub
+# install.packages("pak")
+pak::pak("gomes-sh/SeattleOpenData")
+```
+
+Load it alongside dplyr and ggplot2, since the workflow leans on both for filtering and plotting.
+
+```{r}
+library(SeattleOpenData)
+library(dplyr)
+library(ggplot2)
+```
+
+The **install.packages()** call pulls the stable release, and **pak::pak()** grabs the newest development build straight from the author’s repository when you want features that haven’t reached CRAN yet. Loading **dplyr** gives you the pipe and verbs like `filter()` and `count()` that pair naturally with the tibble output, and **ggplot2** covers the visualization at the end. Note the package name is `SeattleOpenData` with a capital S, which is the name R installs and loads even though some documentation writes it in lowercase.
+
+## **Discovering datasets with seattle_list_datasets()**
+
+Start by finding out what’s available. The catalog is the map, and everything else in the package points back to it.
+
+The **seattle_list_datasets()** function sends a single request to the portal’s catalog table and returns a tibble of every dataset it finds. Two columns matter most. The `uid` is the official Socrata identifier, a short code like `jguv-t9rb` that stays stable over time. The `key` is a human-readable name generated from the dataset title using **janitor::make_clean_names()**, so a dataset named "Seattle Pet Licenses" becomes `seattle_pet_licenses`. Pulling the catalog live means newly published datasets show up without waiting for a package update, which keeps your discovery step current.
+
+```{r}
+## Retrieve the live catalog of available datasets
+catalog <- seattle_list_datasets()
+catalog
+```
+
+Searching the catalog is a normal dplyr operation. Filter the `name` column for a keyword and keep the three columns you need.
+
+```{r}
+# Search the catlog for datasets mentioning "pet"
+
+catalog |> 
+  filter(grepl("pet", name, ignore.case = TRUE)) |> 
+  select(key, uid, name)
+```
+
+## **Pulling a dataset with seattle_pull_dataset()**
+
+Once you have an identifier, `seattle_pull_dataset()` brings the data into R. It accepts either the readable key or the Socrata ID, and both return the same dataset.
+
+```{r}
+## Pull by Sorata UID
+pets_by_uid <- seattle_pull_dataset(
+  dataset = "jguv-t9rb",
+  limit = 5
+)
+
+pets_by_uid
+
+##Pull the same dataset by its radable key
+pets_by_key <- seattle_pull_dataset(
+  dataset = "seattle_pet_licenses",
+  limit = 5
+)
+
+pets_by_key
+
+```
+
+The **seattle_pull_dataset()** function is the workhorse of the package. When you pass a `key`, it first looks up the matching `uid` in the live catalog, then sends a second request for the data itself. Passing the `uid` directly skips the lookup and removes any ambiguity, which is why UIDs are the better choice for reproducible scripts and long-term work. The `limit` argument caps how many rows come back and defaults to 10,000, so setting `limit = 5` during exploration keeps the response small while you inspect the structure. Both calls return a tibble with cleaned column names, ready for dplyr.
+
+Two arguments quietly improve the output every time. `clean_names` converts column headers to snake_case with **janitor::clean_names()**, and `coerce_types` attempts light type conversion so numbers arrive as numeric and dates as datetimes. Both default to `TRUE`. The coercion is deliberately cautious. A column converts only when at least 95 percent of its non-missing values parse cleanly as the target type, which protects you from silent data loss when a field holds mixed values.
+
+## **Filtering data before it reaches R**
+
+Downloading a whole dataset and filtering it locally wastes bandwidth and memory. SeattleOpenData pushes the filter to the server, so only the rows you want travel back. The `filters` argument takes a named list where each name is a field and each value is what to match.
+
+```{r}
+## Filter to a single breed
+
+domestic_shorthair <- seattle_pull_dataset(
+  dataset = "jguv-t9rb",
+  limit = 25,
+  filters = list(primary_breed = "Domestic Shorthair")
+)
+domestic_shorthair |> 
+  distinct(primary_breed)
+```
+
+Passing a character vector to `primary_breed` returns rows matching any value in the vector, which the package translates into a single `IN` clause behind the scenes. This saves you from running one request per value and stitching the results together afterward.
+
+Naming more than one field in the list combines the conditions with `AND`.
+
+```{r}
+## Combine conditions across two fields
+mixed_dogs <- seattle_pull_dataset(
+  dataset = "jguv-t9rb",
+  limit = 50,
+  filters = list(
+    species = "Dog",
+    secondary_breed = "Mix"
+  )
+)
+mixed_dogs
+```
+
+With two entries in the `filters` list, the server returns only rows where `species` is "Dog" and `secondary_breed` is "Mix". Layering conditions this way lets you narrow to a precise slice in one call, which keeps exploratory work fast and readable.
+
+For anything the named list can’t express, the `where` and `order` arguments accept raw SoQL, the Socrata Query Language that powers the portal.
+
+```{r}
+## Advanced filtering and sorting with raw SoQL
+recent_mixed_dogs <- seattle_pull_dataset(
+  dataset = "jguv-t9rb",
+  where = "species = 'Dog' AND secondary_breed = 'Mix'",
+  order = "license_issue_date DESC",
+  limit = 100
+)
+recent_mixed_dogs
+```
+
+The `where` argument passes a full SoQL condition through to the server, and `order` applies a SoQL `ORDER BY` so the newest licenses land at the top. Raw SoQL opens up comparisons the named list doesn't handle, like ranges, greater-than tests, and pattern matches. The [Socrata developer documentation](https://dev.socrata.com/docs/queries/) covers the full syntax when you need it.
+
+## **Filtering by date**
+
+Time filters get their own arguments because date handling is a common source of mistakes. Pass `from`, `to`, or `date` along with `date_field`, which names the column to filter on.
+
+```{r}
+## Pull records within a date range
+licenses_2023 <- seattle_pull_dataset(
+  dataset = "jguv-t9rb",
+  from = "2023-01-01",
+  to = "2024-01-01",
+  data_field = "license_issue_date",
+  limit = 100
+)
+licenses_2023
+```
+
+The **seattle_pull_dataset()** date arguments build a server-side filter on the column you name in `date_field`. The `from` bound is inclusive and the `to` bound is exclusive, so this call captures every 2023 license without accidentally pulling in New Year's Day 2024. Requiring `date_field` explicitly keeps the filter unambiguous, since a dataset can carry more than one date column. For a single day, use the `date` argument with the same `date_field`.
+
+## **Reaching datasets outside the catalog with seattle_any_dataset()**
+
+The catalog covers most of what you’ll need, and `seattle_pull_dataset()` should be your default. Some datasets won't appear there, and for those `seattle_any_dataset()` downloads straight from a Socrata JSON endpoint. Seattle endpoints follow a predictable shape.
+
+```{r}
+## Endpoint pattern
+# https://data.seattle.gov/resource/<dataset_uid>.json
+```
+
+Build the URL from a UID and hand it to the function.
+
+```{r}
+## Download directly from a JSON endpoint
+endpoint_data <- seattle_any_dataset(
+  json_link = "https://data.seattle.gov/resource/jguv-t9rb.json",
+  limit = 5
+)
+endpoint_data
+```
+
+The **seattle_any_dataset()** function skips the catalog lookup and requests the endpoint you supply, then runs the same cleanup pipeline so you still get a tidy tibble with cleaned names and coerced types. It validates that the URL ends in `.json` to catch malformed endpoints early. Reach for this function when you already have an endpoint from the portal's API page, or when a dataset hasn't been added to the catalog yet. For everyday work, the readable keys and built-in defaults of `seattle_pull_dataset()` make it the more convenient choice.
+
+## **A short end-to-end analysis**
+
+The payoff of tidy output is that the rest of your workflow is ordinary R. Here’s the full arc from download to chart, counting the most common breeds in the pet license data.
+
+```{r}
+## Pull data, count breeds, sort, and keep the top ten
+breed_counts <- seattle_pull_dataset(
+  dataset = "jguv-t9rb",
+  limit = 500
+) |> 
+  filter(!is.na(primary_breed)) |> 
+  count(primary_breed, sort = TRUE) |> 
+  slice_head(n = 10)
+
+# Plot the result
+breed_counts |> 
+  ggplot(aes(x = n, y = reorder(primary_breed, n))) +
+  geom_col() + 
+  theme_minimal() +
+  labs(
+    title = "Ten Most Common Breeds in Seattle Pet Licenses",
+    x = "Number of Records",
+    y = "Breed"
+  )
+```
+
+This block chains the whole task through the native pipe. **seattle_pull_dataset()** brings in a sample, **filter()** drops rows with a missing breed, and **count()** with `sort = TRUE` tallies each breed from most to least common before **slice_head()** trims to the top ten. The plotting step uses **reorder()** inside `aes()` so the bars sort by frequency, and **geom_col()** draws them. Because the download returns a clean tibble, no reshaping or type fixing sits between the API call and the chart, which is the whole point of the package.
+
+## **What This Package Brings To Your Data Workflow**
+
+For a lean analytics team, the value of packages like SeattleOpenData is speedy delivery of insights for a first answer. Civic data is free and often underused because the data is varied and unstructured. The plumbing between a portal and a usable data frame has always been a barrier to overcoming the nature of civic data. SeattleOpenData collapses that barrier to three functions and a handful of arguments, which means a nonprofit, a small consultancy, or a solo analyst can pull a real dataset and have a chart in minutes rather than an afternoon.
+
+Two design choices make the package worth keeping in your toolkit. The live catalog means your discovery step stays current as Seattle publishes new datasets, so you rarely need to update the package to reach new data. The consistent interface across the OpenData family means the R you write for Seattle transfers directly to New York or Austin, which pays off if your work spans more than one city.
+
+If civic data fits your projects, the next step is to run the function `seattle_list_datasets()` against a question you already have and see what the portal offers. The datasets are there. Now the access is too.
