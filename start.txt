@@ -1,2 +1,18 @@
 python3 -m venv venv
 source venv/bin/activate
+
+Organize project:
+
+# List of directories to be created
+directories <- c("00_raw_data", 
+                 "01_cleaned_data", 
+                 "02_environments", 
+                 "03_scripts", 
+                 "04_tables", 
+                 "05_graphs",
+                 "06_quarto")
+
+# Create each directory
+for(dir in directories){
+  dir.create(dir)
+}

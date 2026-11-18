@@ -1,0 +1,140 @@
+---
+title: "R Package Update"
+format: html
+editor: visual
+---
+
+## **R Package Updates October 2026**
+
+```{r}
+update.packages(ask = FALSE)
+```
+
+## **1. {gt} 1.4.0 — Export Your R Tables to PowerPoint**
+
+**Error in \`gtsave()\`:**
+! The file extension supplied (\`.pptx\`) cannot be used.
+ℹ We can use:
+• \`.html\`, \`.htm\` (HTML file)
+• \`.png\` (PNG file)
+• \`.pdf\` (PDF file)
+• \`.tex\`, \`.rnw\` (LaTeX file)
+• \`.rtf\` (RTF file)
+• \`.docx\` (Word file)
+
+```{r}
+
+library(gt)
+
+head(mtcars) |>
+  gt() |>
+  gtsave("cars_table.png")
+```
+
+## **2. {coresynth} 1.0.1 — A Nice Update for Causal Inference**
+
+[CRAN](https://cran.r-project.org/package=coresynth) \| [What’s new](https://yo5uke.com/coresynth/news/index.html)
+
+This one is probably more interesting for people working with economics, public policy, or applied research.
+
+Let’s say you want to evaluate whether a government policy actually worked.
+
+You have data for several regions, one of them introduced a new policy, and you want to understand what would have happened without it.
+
+The problem, of course, is that we cannot observe both scenarios.
+
+That’s where methods such as Synthetic Control and Synthetic Difference-in-Differences come in.
+
+I find **{coresynth}** interesting because it brings several of these approaches together in one package.
+
+Among others, it supports:
+
+- Synthetic Control
+
+- Synthetic Difference-in-Differences
+
+- Generalized Synthetic Control
+
+- Matrix Completion
+
+- Time-Aware Synthetic Control
+
+The October 1.0.1 releases brought some substantial changes, including improvements to inference and performance.
+
+According to the developers’ benchmarks, some Synthetic Difference-in-Differences calculations became around **6 times faster**, while a particular Time-Aware Synthetic Control fit was about **10 times faster**.
+
+Of course, these are specific benchmarks, not something we should expect for every dataset.
+
+What I particularly like is that different methods can be accessed through a similar interface.
+
+For example, assuming we already have a suitable panel dataset:
+
+```{r}
+# Region 1 receives treatment from 2016
+panel_data$treated <- as.integer(
+  panel_data$region == 1 &
+    panel_data$year >= 2016
+)
+
+# Simulate outcomes with a treatment effect
+panel_data$y <-
+  10 + panel_data$region +
+  0.2 * (panel_data$year - 2000) +
+  rnorm(nrow(panel_data), sd = 0.5) +
+  2 * panel_data$treated
+
+# Estimate Synthetic Difference-in-Differences
+fit <- scm_fit(
+  y ~ treated | region + year,
+  data = panel_data,
+  method = "sdid"
+)
+
+summary(fit)
+```
+
+## simulated monthly KPI data
+
+```{r}
+set.seed(42)
+
+data_seq <- seq(as.Date("2023-01-01"), Sys.Date(), by = "month")
+n <- length(data_seq)
+
+kpi_raw <- data_frame(
+  date = data_seq,
+  revenue = round(runif(n, 80000, 150000), 0),
+  conversion = round(runif(n, 0.02, 0.08), 4),
+  csat = round(runif(n, 0.01, 0.06), 4)
+)
+
+```
+
+## Rolling windows: last 30 / 60 / 90 days
+
+```{r}
+today <- Sys.Date()
+
+window_30 <- kpi_raw |> filter(date >= today - 30)
+window_60 <- kpi_raw |> filter(date >= today - 60)
+window_90 <- kpi_raw |> filter(date >= today - 90)
+```
+
+## Summarize each window
+
+```{r}
+summarize_kpis <- function(df) {
+  df |>  summarise(
+    revenue = mean(revenue, na.rm = TRUE),
+    conversion = mean(conversion, na.rm = TRUE),
+    csat = mean(csat, na.rm = TRUE),
+    churn = mean(churn, na.rm = TRUE)
+  )
+}
+
+scorecard <- bind_rows(
+  summarize_kpis(window_30 |> mutate(window = "30-Day")),
+  summarize_kpis(window_60 |> mutate(window = "60-Day")),
+  summarize_kpis(window_90 |> mutate(window = "90-Day"))
+) |> select(window, everything())
+```
